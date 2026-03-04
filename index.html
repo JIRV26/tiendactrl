@@ -462,6 +462,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);-webkit-font-s
           <button class="btn btn-ghost" style="padding:14px;font-size:13px;" onclick="goTab('reportes')">📊 Reportes</button>
           <button class="btn btn-ghost" style="padding:14px;font-size:13px;" onclick="goTab('admin')">⚙️ Gestión</button>
           <button class="btn btn-ghost" style="padding:14px;font-size:13px;" onclick="closeDayPrompt()">🔒 Cerrar día</button>
+          <button class="btn btn-ghost" style="padding:14px;font-size:13px;grid-column:1/-1;background:rgba(108,99,255,.15);border:1px solid var(--accent);color:var(--accent2);" onclick="exportarDatos()">📥 Exportar datos para Excel</button>
         </div>
       </div>
     </div>
@@ -1206,6 +1207,36 @@ function showToast(msg,type='ok'){
   el.className='toast show toast-'+type;
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>el.className='toast',3000);
+}
+
+
+// ══════════════════════════════════════════
+// EXPORTAR DATOS (para generar Excel en Python)
+// ══════════════════════════════════════════
+function exportarDatos(){
+  const data = {
+    exportado_en: new Date().toISOString(),
+    exportado_por: currentUser ? currentUser.nombre : 'desconocido',
+    sucursales:    DB.get('sucursales', []),
+    empleados:     DB.get('empleados',  []).map(e=>({...e, password: e.password})),
+    proveedores:   DB.get('proveedores',[]),
+    dias:          DB.get('dias',       []),
+    transacciones: DB.get('transacciones',[]),
+  };
+
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type: 'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const fecha = new Date().toISOString().slice(0,10);
+  a.href     = url;
+  a.download = `datos_tienda_${fecha}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast('Datos exportados correctamente', 'ok');
 }
 
 // ══════════════════════════════════════════

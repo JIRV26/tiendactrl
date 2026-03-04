@@ -318,6 +318,7 @@ h1,h2,h3,.bold{font-family:'Syne',sans-serif}
       <div style="font-family:'Syne',sans-serif;font-size:19px;font-weight:800;margin-bottom:4px">Bienvenido</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:20px">Ingresa tus credenciales</div>
       <div class="login-err" id="loginErr">Usuario o contraseña incorrectos</div>
+      <div class="fg"><label class="fl">Sucursal</label><select class="fs" id="iSuc"></select></div>
       <div class="fg"><label class="fl">Usuario</label><input class="fi" id="iUser" type="text" autocorrect="off" autocapitalize="none" placeholder="nombre de usuario"></div>
       <div class="fg"><label class="fl">Contraseña</label><input class="fi" id="iPass" type="password" placeholder="••••••••"></div>
       <button class="btn btn-p" onclick="doLogin()">Entrar →</button>
@@ -334,6 +335,9 @@ h1,h2,h3,.bold{font-family:'Syne',sans-serif}
       <div class="hdr-sub" id="hdrSub"></div>
     </div>
     <div class="hdr-actions">
+      <button class="icon-btn" id="btnCambiarSuc" onclick="openCambiarSuc()" title="Cambiar sucursal" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </button>
       <button class="icon-btn" id="btnPerfil" onclick="openPerfil()" title="Mi perfil">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
       </button>
@@ -612,6 +616,19 @@ h1,h2,h3,.bold{font-family:'Syne',sans-serif}
   </div>
 </div>
 
+<!-- ══ MODAL CAMBIAR SUCURSAL ══ -->
+<div class="overlay" id="mCambiarSuc">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Cambiar Sucursal Activa</div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5">Como administrador puedes operar desde cualquier sucursal. Selecciona la sucursal en la que trabajarás ahora.</p>
+      <div id="sucList" style="margin-bottom:16px"></div>
+      <button class="btn btn-gh" onclick="closeModal('mCambiarSuc')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ CONFIRM DIALOG ══ -->
 <div class="confirm-overlay" id="confirmDlg">
   <div class="confirm-box">
@@ -651,10 +668,10 @@ function seed(){
     {id:1,nombre:'Ana García',usuario:'ana',password:'admin123',rol:'administrador',sucursal_id:1,activo:true},
     {id:2,nombre:'Luis Pérez',usuario:'luis',password:'emp123',rol:'empleado',sucursal_id:1,activo:true},
     {id:3,nombre:'María López',usuario:'maria',password:'emp123',rol:'empleado',sucursal_id:1,activo:true},
-    {id:4,nombre:'Carlos Ruiz',usuario:'carlos',password:'emp123',rol:'empleado',sucursal_id:2,activo:true},
+    {id:4,nombre:'Carlos Ruiz',usuario:'carlos',password:'admin123',rol:'administrador',sucursal_id:2,activo:true},
     {id:5,nombre:'Sofía Torres',usuario:'sofia',password:'emp123',rol:'empleado',sucursal_id:2,activo:true},
     {id:6,nombre:'Jorge Díaz',usuario:'jorge',password:'emp123',rol:'empleado',sucursal_id:2,activo:true},
-    {id:7,nombre:'Elena Vega',usuario:'elena',password:'emp123',rol:'empleado',sucursal_id:3,activo:true},
+    {id:7,nombre:'Elena Vega',usuario:'elena',password:'admin123',rol:'administrador',sucursal_id:3,activo:true},
     {id:8,nombre:'Pedro Mora',usuario:'pedro',password:'emp123',rol:'empleado',sucursal_id:3,activo:true},
     {id:9,nombre:'Laura Castro',usuario:'laura',password:'emp123',rol:'empleado',sucursal_id:3,activo:true}
   ]);
@@ -735,14 +752,17 @@ let CU=null; // current user
 function doLogin(){
   const u=document.getElementById('iUser').value.trim();
   const p=document.getElementById('iPass').value.trim();
+  const sucId=parseInt(document.getElementById('iSuc').value);
   const e=getEmps().find(e=>e.usuario===u&&e.password===p&&e.activo);
   if(!e){document.getElementById('loginErr').style.display='block';document.getElementById('iPass').value='';return}
   document.getElementById('loginErr').style.display='none';
-  const s=getSuc(e.sucursal_id);
-  CU={...e,suc_nombre:s.nombre||'—'};
+  // Use selected sucursal (admin can log into any, employee stays in their own)
+  const finalSucId = e.rol==='administrador' ? sucId : e.sucursal_id;
+  const s=getSuc(finalSucId);
+  CU={...e,sucursal_id:finalSucId,suc_nombre:s.nombre||'—'};
   showApp();
 }
-function doLogout(){CU=null;document.getElementById('s-login').style.display='flex';document.getElementById('s-login').classList.add('active');document.getElementById('s-main').style.display='none';document.getElementById('iUser').value='';document.getElementById('iPass').value=''}
+function doLogout(){CU=null;document.getElementById('s-login').style.display='flex';document.getElementById('s-login').classList.add('active');document.getElementById('s-main').style.display='none';document.getElementById('iUser').value='';document.getElementById('iPass').value='';fillLoginSuc&&fillLoginSuc()}
 
 function showApp(){
   document.getElementById('s-login').style.display='none';
@@ -750,6 +770,7 @@ function showApp(){
   const admin=CU.rol==='administrador';
   document.getElementById('navAdmin').style.display=admin?'flex':'none';
   document.getElementById('adminActions').style.display=admin?'block':'none';
+  document.getElementById('btnCambiarSuc').style.display=admin?'flex':'none';
   document.getElementById('pName').textContent=CU.nombre;
   document.getElementById('pRole').textContent=CU.rol==='administrador'?'Administrador':'Empleado';
   document.getElementById('pSuc').textContent=CU.suc_nombre;
@@ -1188,10 +1209,10 @@ function saveEmp(){
   const sucId=parseInt(document.getElementById('empSuc').value);
   if(!nombre||!usuario){showToast('Nombre y usuario son obligatorios','err');return}
   let emps=getEmps();
-  // Solo 1 admin
+  // Solo 1 admin por sucursal
   if(rol==='administrador'){
-    const adminExist=emps.find(e=>e.rol==='administrador'&&e.id!==id&&e.activo);
-    if(adminExist){showToast(`Ya existe un admin: ${adminExist.nombre}. Primero cámbialo a empleado.`,'err');return}
+    const adminExist=emps.find(e=>e.rol==='administrador'&&e.id!==id&&e.activo&&e.sucursal_id===sucId);
+    if(adminExist){showToast(`Ya hay admin en esa sucursal: ${adminExist.nombre}`,'err');return}
   }
   if(!id){
     if(!pass){showToast('La contraseña es obligatoria','err');return}
@@ -1378,6 +1399,44 @@ function savePerfil(){
 }
 
 // ════════════════════════════════════════════
+// CAMBIAR SUCURSAL (admin)
+// ════════════════════════════════════════════
+function openCambiarSuc(){
+  const sucs=getSucs().filter(s=>s.activa);
+  document.getElementById('sucList').innerHTML=sucs.map(s=>{
+    const isActive=s.id===CU.sucursal_id;
+    const admin=getEmps().find(e=>e.rol==='administrador'&&e.sucursal_id===s.id&&e.activo);
+    return`<div onclick="selCambiarSuc(${s.id})" style="
+      padding:14px 16px;border-radius:12px;margin-bottom:8px;cursor:pointer;
+      border:1.5px solid ${isActive?'var(--accent)':'var(--border2)'};
+      background:${isActive?'var(--accent3)':'var(--card2)'};
+      display:flex;align-items:center;gap:12px;transition:all .15s
+    ">
+      <div style="font-size:22px">🏪</div>
+      <div style="flex:1">
+        <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:${isActive?'var(--accent2)':'var(--text)'}">${s.nombre}</div>
+        <div style="font-size:11px;color:var(--text2)">${s.direccion||'—'} · Admin: ${admin?admin.nombre:'Sin admin'}</div>
+      </div>
+      ${isActive?'<span class="badge ba">Activa</span>':''}
+    </div>`;
+  }).join('');
+  openModal('mCambiarSuc');
+}
+
+function selCambiarSuc(sucId){
+  const suc=getSuc(sucId);
+  CU={...CU,sucursal_id:sucId,suc_nombre:suc.nombre||'—'};
+  // Update employee record too
+  const emps=getEmps().map(e=>e.id===CU.id?{...e,sucursal_id:sucId}:e);
+  DB.set('empleados',emps);
+  document.getElementById('pSuc').textContent=CU.suc_nombre;
+  document.getElementById('hdrSub').textContent=CU.suc_nombre;
+  closeModal('mCambiarSuc');
+  showToast(`Sucursal cambiada a ${suc.nombre}`,'ok');
+  rfHome();
+}
+
+// ════════════════════════════════════════════
 // EXPORTAR
 // ════════════════════════════════════════════
 function exportarDatos(){
@@ -1438,6 +1497,11 @@ function showToast(msg,type='ok'){
 // INIT
 // ════════════════════════════════════════════
 seed();
+function fillLoginSuc(){
+  const sucs=getSucs().filter(s=>s.activa);
+  document.getElementById('iSuc').innerHTML=sucs.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('');
+}
+fillLoginSuc();
 document.getElementById('iPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 document.getElementById('iUser').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('iPass').focus()});
 </script>
